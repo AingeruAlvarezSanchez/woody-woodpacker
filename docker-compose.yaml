@@ -1,0 +1,9 @@
+services:
+  dev:
+    build: .
+    container_name: woody_woodpacker_dev
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
+    tty: true
+    stdin_open: true
