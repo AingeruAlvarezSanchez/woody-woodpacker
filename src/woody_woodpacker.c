@@ -3,7 +3,57 @@
 //
 
 #include "woody_woodpacker.h"
+#include "libft.h"
+#include <stdio.h>
+#include <fcntl.h>
+#include <string.h>
+#include <unistd.h>
+#include <errno.h>
+#include <elf.h>
+#include <sys/mman.h>
 
-int main() {
-    return 0;
+static __uint8_t error(char *msg) {
+    ft_putendl_fd(msg, STDOUT_FILENO);
+    return EXIT_FAILURE;
+}
+
+static int validate_elf_file(const char *file, t_elf *elf) {
+    const int fd = open(file, 0);
+    if (fd == -1) return error(strerror(errno));
+
+    const off_t offset = lseek(fd, 0, SEEK_END);
+    if (offset == -1) {
+        close(fd);
+        return error(strerror(errno));
+    }
+    if (offset < (off_t)sizeof(Elf64_Ehdr)) {
+        close(fd);
+        return error(ENOELF);
+    }
+
+    const Elf64_Ehdr *elf_header = mmap(NULL, offset, PROT_READ, MAP_PRIVATE, fd, 0);
+    close(fd);
+    if (elf_header == MAP_FAILED) return error(strerror(errno));
+    if (ft_memcmp(elf_header->e_ident, ELFMAG, SELFMAG) != 0) {
+        munmap((void *)elf_header, offset);
+        return error(ENOELF);
+    }
+    if (elf_header->e_ident[EI_CLASS] != ELFCLASS64 || elf_header->e_machine != EM_X86_64) {
+        munmap((void *)elf_header, offset);
+        return error(EWRONGARCH);
+    }
+
+    elf->elf64_raw = (const unsigned char *)elf_header;
+    elf->offset = offset;
+    return EXIT_SUCCESS;
+}
+
+int main(const int argc, char **argv) {
+    if (argc != 2) return error(strerror(EINVAL));
+
+    t_elf elf = {};
+    if (validate_elf_file(argv[1], &elf) != EXIT_SUCCESS) return EXIT_FAILURE;
+
+    munmap((void *)elf.elf64_raw, elf.offset);
+    return EXIT_SUCCESS;
 }
