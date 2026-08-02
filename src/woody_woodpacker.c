@@ -12,7 +12,7 @@
 #include <elf.h>
 #include <sys/mman.h>
 
-static __uint8_t error(char *msg) {
+__uint8_t error(char *msg) {
     ft_putendl_fd(msg, STDOUT_FILENO);
     return EXIT_FAILURE;
 }
@@ -53,6 +53,18 @@ int main(const int argc, char **argv) {
 
     t_elf elf = {};
     if (validate_elf_file(argv[1], &elf) != EXIT_SUCCESS) return EXIT_FAILURE;
+    const Elf64_Ehdr *header = (Elf64_Ehdr *)elf.elf64_raw;
+    const Elf64_Shdr *section_header = (Elf64_Shdr *)(elf.elf64_raw + header->e_shoff);
+
+    __uint32_t states[16];
+    if (prepare_chacha20_stream(states) != EXIT_SUCCESS) return EXIT_FAILURE;
+
+    for (int i = 0; i < header->e_shnum; i++) {
+        if (section_header[i].sh_flags & SHF_EXECINSTR) {
+            unsigned char *text = (unsigned char *)elf.elf64_raw + section_header[i].sh_offset;
+            chacha20_encrypt(states, text, section_header[i].sh_size);
+        }
+    }
 
     munmap((void *)elf.elf64_raw, elf.offset);
     return EXIT_SUCCESS;

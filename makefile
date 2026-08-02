@@ -4,7 +4,7 @@ CC = gcc
 CFLAGS = -Wall -Werror -Wextra
 SANITIZE = -g3 -fsanitize=address -fsanitize=leak
 
-SRC = src/woody_woodpacker.c
+SRC = src/woody_woodpacker.c src/chacha20.c
 OBJ = $(patsubst src/%.c, obj/%.o, $(SRC))
 
 INCLUDE = -I./inc
