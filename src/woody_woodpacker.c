@@ -48,6 +48,17 @@ static int validate_elf_file(const char *file, t_elf *elf) {
     return EXIT_SUCCESS;
 }
 
+__uint8_t create_woody_executable(t_elf *elf) {
+    const int fd = open(ENCRYPTED_EXECUTABLE_NAME, O_CREAT | O_RDWR | O_TRUNC, 0755);
+    if (fd == -1) return error(strerror(errno));
+
+    const ssize_t result = write(fd, elf->elf64_raw, elf->offset);
+    if (result == -1) return error(strerror(errno));
+
+    close(fd);
+    return EXIT_SUCCESS;
+}
+
 int main(const int argc, char **argv) {
     if (argc != 2) return error(strerror(EINVAL));
 
@@ -70,6 +81,8 @@ int main(const int argc, char **argv) {
         printf("%08x", states[i]);
     }
     printf("\n");
+
+    if (create_woody_executable(&elf) != EXIT_SUCCESS) return EXIT_FAILURE;
 
     munmap((void *)elf.elf64_raw, elf.offset);
     return EXIT_SUCCESS;

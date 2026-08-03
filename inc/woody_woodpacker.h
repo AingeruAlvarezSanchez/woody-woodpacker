@@ -24,6 +24,8 @@
 
 #define MAX_HEXA 0xff
 
+#define ENCRYPTED_EXECUTABLE_NAME "woody"
+
 #include <stdio.h>
 
 typedef struct s_elf {
