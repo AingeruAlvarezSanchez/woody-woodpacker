@@ -31,15 +31,15 @@ static int validate_elf_file(const char *file, t_elf *elf) {
         return error(ENOELF);
     }
 
-    const Elf64_Ehdr *elf_header = mmap(NULL, offset, PROT_READ, MAP_PRIVATE, fd, 0);
+    Elf64_Ehdr *elf_header = mmap(NULL, offset, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
     close(fd);
     if (elf_header == MAP_FAILED) return error(strerror(errno));
     if (ft_memcmp(elf_header->e_ident, ELFMAG, SELFMAG) != 0) {
-        munmap((void *)elf_header, offset);
+        munmap(elf_header, offset);
         return error(ENOELF);
     }
     if (elf_header->e_ident[EI_CLASS] != ELFCLASS64 || elf_header->e_machine != EM_X86_64) {
-        munmap((void *)elf_header, offset);
+        munmap(elf_header, offset);
         return error(EWRONGARCH);
     }
 
@@ -65,6 +65,11 @@ int main(const int argc, char **argv) {
             chacha20_encrypt(states, text, section_header[i].sh_size);
         }
     }
+    printf("key_value: ");
+    for (int i = 4; i != 12; i++) {
+        printf("%08x", states[i]);
+    }
+    printf("\n");
 
     munmap((void *)elf.elf64_raw, elf.offset);
     return EXIT_SUCCESS;
