@@ -26,11 +26,15 @@
 
 #define ENCRYPTED_EXECUTABLE_NAME "woody"
 
+#include <elf.h>
 #include <stdio.h>
 
 typedef struct s_elf {
     const unsigned char *elf64_raw;
     off_t offset;
+    size_t executable_sections;
+    Elf64_Addr *section_addr;
+    Elf64_Xword *section_size;
 } t_elf;
 
 __uint8_t error(char *msg);

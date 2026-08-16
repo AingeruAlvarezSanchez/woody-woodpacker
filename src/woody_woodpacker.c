@@ -9,7 +9,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
-#include <elf.h>
 #include <sys/mman.h>
 
 __uint8_t error(char *msg) {
@@ -70,12 +69,20 @@ int main(const int argc, char **argv) {
     __uint32_t states[16];
     if (prepare_chacha20_stream(states) != EXIT_SUCCESS) return EXIT_FAILURE;
 
+    Elf64_Addr section_addr[header->e_shnum];
+    Elf64_Xword section_size[header->e_shnum];
     for (int i = 0; i < header->e_shnum; i++) {
         if (section_header[i].sh_flags & SHF_EXECINSTR) {
             unsigned char *text = (unsigned char *)elf.elf64_raw + section_header[i].sh_offset;
             chacha20_encrypt(states, text, section_header[i].sh_size);
+            section_addr[elf.executable_sections] = section_header[i].sh_addr;
+            section_size[elf.executable_sections] = section_header[i].sh_size;
+            elf.executable_sections++;
         }
     }
+    elf.section_addr = section_addr;
+    elf.section_size = section_size;
+
     printf("key_value: ");
     for (int i = 4; i != 12; i++) {
         printf("%08x", states[i]);
