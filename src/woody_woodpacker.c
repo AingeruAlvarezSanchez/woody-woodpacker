@@ -56,24 +56,34 @@ static __uint8_t create_woody_executable(const t_elf *elf) {
     if (result == -1) return error(strerror(errno));
     result = write(fd, stub, stub_len);
     if (result == -1) return error(strerror(errno));
+    for (size_t i = 0; i < elf->executable_sections; i++) {
+        result = write(fd, &elf->section_addr[i], sizeof(Elf64_Addr));
+        if (result == -1) return error(strerror(errno));
+        result = write(fd, &elf->section_size[i], sizeof(Elf64_Xword));
+        if (result == -1) return error(strerror(errno));
+    }
 
     close(fd);
     return EXIT_SUCCESS;
 }
 
-static __uint8_t replace_asm_placeholder(const Elf64_Addr delta) {
+static __uint8_t replace_asm_placeholder(const Elf64_Addr delta, const size_t executable_sections) {
+    __uint8_t found_ph = 0;
     for (size_t i = 0; i + 8 <= stub_len; i++) {
-        if (*(uint64_t *)(stub + i) == PLACEHOLDER) {
+        if (*(uint64_t *)(stub + i) == ENTRY_PLACEHOLDER) {
             *(uint64_t *)(stub + i) = delta;
-            return EXIT_SUCCESS;
+            found_ph++;
+        }
+        if (*(uint64_t *)(stub + i) == COUNT_PLACEHOLDER) {
+            *(uint64_t *)(stub + i) = executable_sections;
+            found_ph++;
         }
     }
-    return EXIT_FAILURE;
+    return found_ph != 2;
 }
 
 static __uint8_t inject_stub(const t_elf *elf, Elf64_Ehdr *header) {
-    Elf64_Phdr *program_header = (Elf64_Phdr *)(elf->elf64_raw + header->e_phoff);
-    Elf64_Phdr *pt_note = NULL;
+    Elf64_Phdr *program_header = (Elf64_Phdr *)(elf->elf64_raw + header->e_phoff), *pt_note = NULL;
     const Elf64_Addr entry_cpy = header->e_entry;
     Elf64_Addr new_vaddr = 0;
     for (int i = 0; i < header->e_phnum; i++) {
@@ -91,12 +101,16 @@ static __uint8_t inject_stub(const t_elf *elf, Elf64_Ehdr *header) {
     pt_note->p_type = PT_LOAD;
     pt_note->p_flags = PF_R | PF_X;
     pt_note->p_offset = elf->offset;
-    pt_note->p_filesz = stub_len;
-    pt_note->p_memsz = stub_len;
+    pt_note->p_filesz = stub_len + elf->executable_sections * 16;
+    pt_note->p_memsz = stub_len + elf->executable_sections * 16;
     pt_note->p_vaddr = new_vaddr + (pt_note->p_offset & 0xfffUL);
     pt_note->p_align = 0x1000;
     header->e_entry = pt_note->p_vaddr;
-    if (replace_asm_placeholder(entry_cpy - pt_note->p_vaddr)) return error(ENOPHOLDER);
+
+    for (size_t i = 0; i < elf->executable_sections; i++) {
+        elf->section_addr[i] -= pt_note->p_vaddr;
+    }
+    if (replace_asm_placeholder(entry_cpy - pt_note->p_vaddr, elf->executable_sections)) return error(ENOPHOLDER);
 
     return EXIT_SUCCESS;
 }

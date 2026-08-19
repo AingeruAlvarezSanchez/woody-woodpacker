@@ -11,7 +11,7 @@
 #define ENOELF "Not an ELF file"
 #define EWRONGARCH "File architecture not suported. x86_64 only"
 #define ENOPTNOTE "ELF does not contain a PT_NOTE symbol. Aborting"
-#define ENOPHOLDER "the stub doesn't contain the designated placeholder. Aborting"
+#define ENOPHOLDER "the stub doesn't contain one or more expected placeholder values. Aborting"
 
 #define URANDOM "/dev/urandom"
 
@@ -24,7 +24,8 @@
 #define CHACHA20_C1 0x3320646e
 #define CHACHA20_C2 0x79622d32
 #define CHACHA20_C3 0x6b206574
-#define PLACEHOLDER 0xDEADC0DEDEADC0DE
+#define ENTRY_PLACEHOLDER 0xDEADC0DEDEADC0DE
+#define COUNT_PLACEHOLDER 0xC0FFEE00C0FFEE00
 
 #define MAX_HEXA 0xff
 
