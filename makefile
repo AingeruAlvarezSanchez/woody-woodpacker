@@ -1,23 +1,30 @@
 NAME = woody_woodpacker
 
 CC = gcc
-CFLAGS = -Wall -Werror -Wextra
+CFLAGS = -Wall -Werror -Wextra -MMD -MP
 SANITIZE = -g3 -fsanitize=address -fsanitize=leak
 
-SRC = src/woody_woodpacker.c src/chacha20.c
-OBJ = $(patsubst src/%.c, obj/%.o, $(SRC))
+SRC = src/woody_woodpacker.c src/elf.c src/program_headers.c src/debug.c src/error.c src/chacha20.c src/output.c src/stub.c
+OBJ = $(patsubst src/%.c, obj/%.o, $(SRC)) obj/stub_asm.o
+DEP = $(OBJ:.o=.d)
 
 INCLUDE = -I./inc
 LIBFT = libft
 
-.PHONY: all
-all: $(NAME)
-$(NAME): libft_submodule $(OBJ)
-	$(CC) $(CFLAGS) $(OBJ) -L$(LIBFT) -lft -o $(NAME)
+all: libft_submodule $(NAME)
+
+$(NAME): $(OBJ)
+	$(CC) $(CFLAGS) $(INCLUDE) -I$(LIBFT) $(OBJ) -L$(LIBFT) -lft -o $(NAME)
 
 obj/%.o: src/%.c
-	mkdir -p $(@D)
-	$(CC) -c $(CFLAGS) $(INCLUDE) -I$(LIBFT) $< -o $@
+	@mkdir -p obj
+	$(CC) $(CFLAGS) $(INCLUDE) -I$(LIBFT) -c $< -o $@
+
+obj/stub_asm.o: src/stub.S
+	@mkdir -p obj
+	$(CC) -c $< -o $@
+
+-include $(DEP)
 
 .PHONY: clean
 clean:
@@ -27,13 +34,10 @@ clean:
 .PHONY: fclean
 fclean: clean
 	$(RM) $(NAME)
-	[ -d $(LIBFT) ] && $(MAKE) fclean -C $(LIBFT) || true
+	$(RM) woody
 
 .PHONY: re
-re: fclean
-	git submodule deinit -f $(LIBFT) 2>/dev/null || true
-	$(RM) -r .git/modules/$(LIBFT) $(LIBFT)
-	$(MAKE) all
+re: fclean all
 
 .PHONY: libft_submodule
 libft_submodule:
@@ -43,7 +47,7 @@ libft_submodule:
 		fi; \
 		git submodule update --init --recursive; \
 	fi
-	$(MAKE) ext -C $(LIBFT)
+	$(MAKE) -C $(LIBFT)
 
 .PHONY: sanitize
 sanitize: CFLAGS += $(SANITIZE)
