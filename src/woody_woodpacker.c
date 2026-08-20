@@ -67,19 +67,39 @@ static __uint8_t create_woody_executable(const t_elf *elf) {
     return EXIT_SUCCESS;
 }
 
-static __uint8_t replace_asm_placeholder(const Elf64_Addr delta, const size_t executable_sections) {
+static void fill_placeholder(size_t offset, const uint32_t *content, const size_t size) {
+    for (size_t i = 0; i < size; i++) {
+        *(uint32_t *)(stub + offset) = content[i];
+        offset += 4;
+    }
+}
+
+static __uint8_t replace_asm_placeholder(const Elf64_Addr delta, const t_elf *elf) {
     __uint8_t found_ph = 0;
     for (size_t i = 0; i + 8 <= stub_len; i++) {
-        if (*(uint64_t *)(stub + i) == ENTRY_PLACEHOLDER) {
-            *(uint64_t *)(stub + i) = delta;
-            found_ph++;
-        }
-        if (*(uint64_t *)(stub + i) == COUNT_PLACEHOLDER) {
-            *(uint64_t *)(stub + i) = executable_sections;
-            found_ph++;
+        switch (*(uint64_t *)(stub + i)) {
+            case ENTRY_PLACEHOLDER:
+                *(uint64_t *)(stub + i) = delta;
+                found_ph++;
+                break;
+            case COUNT_PLACEHOLDER:
+                *(uint64_t *)(stub + i) = elf->executable_sections;
+                found_ph++;
+                break;
+            case KEY_PLACEHOLDER:
+                fill_placeholder(i, &elf->states[4], 8);
+                i += 32;
+                found_ph++;
+                break;
+            case NONCE_PLACEHOLDER:
+                fill_placeholder(i, &elf->states[13], 3);
+                i += 12;
+                found_ph++;
+                break;
+            default: ;
         }
     }
-    return found_ph != 2;
+    return found_ph != 4;
 }
 
 static __uint8_t inject_stub(const t_elf *elf, Elf64_Ehdr *header) {
@@ -110,7 +130,7 @@ static __uint8_t inject_stub(const t_elf *elf, Elf64_Ehdr *header) {
     for (size_t i = 0; i < elf->executable_sections; i++) {
         elf->section_addr[i] -= pt_note->p_vaddr;
     }
-    if (replace_asm_placeholder(entry_cpy - pt_note->p_vaddr, elf->executable_sections)) return error(ENOPHOLDER);
+    if (replace_asm_placeholder(entry_cpy - pt_note->p_vaddr, elf)) return error(ENOPHOLDER);
 
     return EXIT_SUCCESS;
 }
@@ -123,15 +143,14 @@ int main(const int argc, char **argv) {
     Elf64_Ehdr *header = (Elf64_Ehdr *)elf.elf64_raw;
     const Elf64_Shdr *section_header = (Elf64_Shdr *)(elf.elf64_raw + header->e_shoff);
 
-    __uint32_t states[16];
-    if (prepare_chacha20_stream(states) != EXIT_SUCCESS) return EXIT_FAILURE;
+    if (prepare_chacha20_stream(elf.states) != EXIT_SUCCESS) return EXIT_FAILURE;
 
     Elf64_Addr section_addr[header->e_shnum];
     Elf64_Xword section_size[header->e_shnum];
     for (int i = 0; i < header->e_shnum; i++) {
         if (section_header[i].sh_flags & SHF_EXECINSTR) {
             unsigned char *text = (unsigned char *)elf.elf64_raw + section_header[i].sh_offset;
-            chacha20_encrypt(states, text, section_header[i].sh_size);
+            chacha20_encrypt(elf.states, text, section_header[i].sh_size);
             section_addr[elf.executable_sections] = section_header[i].sh_addr;
             section_size[elf.executable_sections] = section_header[i].sh_size;
             elf.executable_sections++;
@@ -142,8 +161,12 @@ int main(const int argc, char **argv) {
 
     inject_stub(&elf, header);
     printf("key_value: ");
-    for (int i = 4; i != 12; i++) {
-        printf("%08x", states[i]);
+    for (int i = 0; i < 16; i++) {
+        if (i != 12) {
+            printf("%08x", elf.states[i]);
+        } else {
+            printf("%08x", 1);
+        }
     }
     printf("\n");
 

@@ -52,9 +52,16 @@ decrypt:
     jne decrypt                 ; if r12 does not equal 0, loop again
     ret
 
+section .bss
+    rkeystream: resq 8
+
 section .data
     msg db "....WOODY....", 10
     mlen equ $ - msg
     oe: dq 0xDEADC0DEDEADC0DE
     count: dq 0xC0FFEE00C0FFEE00
+    seed: dd 0x61707865,0x3320646e,0x79622d32,0x6b206574
+          dd 0xCAFEBABE,0xCAFEBABE,0xCAFEBABE,0xCAFEBABE,0xCAFEBABE,0xCAFEBABE,0xCAFEBABE,0xCAFEBABE
+          dd 0x00000001
+          dd 0xFEEDFACE,0xFEEDFACE,0xFEEDFACE
     regions:

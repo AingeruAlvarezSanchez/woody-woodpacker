@@ -26,6 +26,8 @@
 #define CHACHA20_C3 0x6b206574
 #define ENTRY_PLACEHOLDER 0xDEADC0DEDEADC0DE
 #define COUNT_PLACEHOLDER 0xC0FFEE00C0FFEE00
+#define KEY_PLACEHOLDER 0xCAFEBABECAFEBABE
+#define NONCE_PLACEHOLDER 0xFEEDFACEFEEDFACE
 
 #define MAX_HEXA 0xff
 
@@ -40,6 +42,7 @@ typedef struct s_elf {
     size_t executable_sections;
     Elf64_Addr *section_addr;
     Elf64_Xword *section_size;
+    __uint32_t states[16];
 } t_elf;
 
 __uint8_t error(char *msg);
