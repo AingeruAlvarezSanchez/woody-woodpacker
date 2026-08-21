@@ -15,8 +15,8 @@ _start:
     mov rdx, mlen               ; 3rd argument of the write syscall, len of the msg
     syscall                     ; prints "....WOODY...."
 
-    mov r12, [rel count]        ; move the total address count to modify to r12
-    lea r13, [rel regions]      ; initial address to override
+    mov r12, [rel ph_size]      ; move the size of the address to override to r12
+    lea r13, [rel ph_addr]      ; initial address to override
     lea r14, [rel _start]       ; moves the runtime address of the program to r14
     call decrypt
 
@@ -38,18 +38,13 @@ decrypt:
     mov r8, rdi                 ; moves the calculated target address into r8
     and r8, 0xfff               ; takes only the lesser bits of the address
 
-    mov rsi, [r13 + 8]          ; address of the size of the address to override
+    mov rsi, r12                ; size of the address to override
 
     add rsi, r8                 ; adds the extra-space into the size argument
     and rdi, ~0xfff             ; rounds down the address to comply with page alineation
 
     mov rdx, 7                  ; mprotect flag for RWX as a bitmap value
     syscall
-
-    add r13, 16                 ; we advance 16 bytes, since regions contains a sequence of addr,size vars
-    dec r12                     ; decrement the r12 counter
-    cmp r12, 0                  ; check if r12 equals 0
-    jne decrypt                 ; if r12 does not equal 0, loop again
     ret
 
 section .bss
@@ -59,9 +54,9 @@ section .data
     msg db "....WOODY....", 10
     mlen equ $ - msg
     oe: dq 0xDEADC0DEDEADC0DE
-    count: dq 0xC0FFEE00C0FFEE00
+    ph_addr: dq 0xC0FFEE00C0FFEE00
+    ph_size: dq 0xDEADBEEFDEADBEEF
     seed: dd 0x61707865,0x3320646e,0x79622d32,0x6b206574
           dd 0xCAFEBABE,0xCAFEBABE,0xCAFEBABE,0xCAFEBABE,0xCAFEBABE,0xCAFEBABE,0xCAFEBABE,0xCAFEBABE
           dd 0x00000001
           dd 0xFEEDFACE,0xFEEDFACE,0xFEEDFACE
-    regions:

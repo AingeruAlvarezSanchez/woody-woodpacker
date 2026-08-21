@@ -25,7 +25,8 @@
 #define CHACHA20_C2 0x79622d32
 #define CHACHA20_C3 0x6b206574
 #define ENTRY_PLACEHOLDER 0xDEADC0DEDEADC0DE
-#define COUNT_PLACEHOLDER 0xC0FFEE00C0FFEE00
+#define PHADDR_PLACEHOLDER 0xC0FFEE00C0FFEE00
+#define PHSIZE_PLACEHOLDER 0xDEADBEEFDEADBEEF
 #define KEY_PLACEHOLDER 0xCAFEBABECAFEBABE
 #define NONCE_PLACEHOLDER 0xFEEDFACEFEEDFACE
 
@@ -39,9 +40,8 @@
 typedef struct s_elf {
     const unsigned char *elf64_raw;
     off_t offset;
-    size_t executable_sections;
-    Elf64_Addr *section_addr;
-    Elf64_Xword *section_size;
+    Elf64_Addr program_addr;
+    Elf64_Xword program_size;
     __uint32_t states[16];
 } t_elf;
 
