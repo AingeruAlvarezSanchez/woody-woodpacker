@@ -46,7 +46,13 @@ typedef struct s_elf {
 } t_elf;
 
 __uint8_t error(char *msg);
+
+// chacha20 related
 int prepare_chacha20_stream(__uint32_t states[16]);
-void chacha20_encrypt(__uint32_t states[16], unsigned char *text, size_t len);
+void chacha20_encrypt(t_elf *elf, const Elf64_Ehdr *header, const Elf64_Phdr *program_header);
+
+// Stub related
+__uint8_t inject_stub(t_elf *elf, Elf64_Ehdr *header);
+ssize_t write_stub(int fd);
 
 #endif //WOODY_WOODPACKER_H

@@ -59,7 +59,7 @@ static void chacha20_block(__uint32_t states[16], unsigned char keystream[64]) {
     }
 }
 
-void chacha20_encrypt(__uint32_t states[16], unsigned char *text, const size_t len) {
+static void encrypt_block(__uint32_t states[16], unsigned char *text, const size_t len) {
     unsigned char encrypted_text[64];
     for (size_t i = 0; i < len; i += 64) {
         chacha20_block(states, encrypted_text);
@@ -67,6 +67,18 @@ void chacha20_encrypt(__uint32_t states[16], unsigned char *text, const size_t l
         const size_t n = len - i < 64 ? len - i : 64;
         for (size_t k = 0; k < n; k++) {
             text[i + k] ^= encrypted_text[k];
+        }
+    }
+}
+
+void chacha20_encrypt(t_elf *elf, const Elf64_Ehdr *header, const Elf64_Phdr *program_header) {
+    for (int i = 0; i < header->e_phnum; i++) {
+        if (program_header[i].p_type == PT_LOAD && program_header[i].p_flags & PF_X) {
+            unsigned char *text = (unsigned char *)elf->elf64_raw + program_header[i].p_offset;
+            encrypt_block(elf->states, text, program_header[i].p_filesz);
+            elf->program_addr = program_header[i].p_vaddr;
+            elf->program_size = program_header[i].p_filesz;
+            break;
         }
     }
 }
