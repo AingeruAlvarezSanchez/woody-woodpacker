@@ -117,7 +117,7 @@ static __uint8_t inject_stub(t_elf *elf, Elf64_Ehdr *header) {
 
     new_vaddr = ROUND_UP(new_vaddr);
     pt_note->p_type = PT_LOAD;
-    pt_note->p_flags = PF_R | PF_X;
+    pt_note->p_flags = PF_R | PF_W | PF_X;
     pt_note->p_offset = elf->offset;
     pt_note->p_filesz = stub_len;
     pt_note->p_memsz = stub_len;
