@@ -54,6 +54,15 @@ int woody_find_target_segment(t_woody *woody) {
     for (Elf64_Half index = 0; index < woody->elf.ehdr->e_phnum; index++) {
         if (woody->elf.phdrs[index].p_type == PT_LOAD && woody->elf.ehdr->e_entry >= woody->elf.phdrs[index].p_vaddr
             && woody->elf.ehdr->e_entry < woody->elf.phdrs[index].p_vaddr + woody->elf.phdrs[index].p_memsz) {
+            /* ld.so consume la tabla dinamica ANTES que el stub (corre via PT_INTERP).
+               Si el PT_DYNAMIC vive dentro del segmento a cifrar, se corrompe y el
+               binario revienta con SIGSEGV al resolver relocaciones. */
+            for (Elf64_Half j = 0; j < woody->elf.ehdr->e_phnum; j++)
+                if (woody->elf.phdrs[j].p_type == PT_DYNAMIC
+                    && woody->elf.phdrs[j].p_vaddr >= woody->elf.phdrs[index].p_vaddr
+                    && woody->elf.phdrs[j].p_vaddr < woody->elf.phdrs[index].p_vaddr + woody->elf.phdrs[index].p_filesz)
+                    return (error("entry is inside the dynamic segment; cannot pack an already-packed binary"));
+
             woody->text_vaddr = woody->elf.phdrs[index].p_vaddr;
             woody->text_size = woody->elf.phdrs[index].p_filesz;
             woody->text_offset = woody->elf.phdrs[index].p_offset;
@@ -61,7 +70,7 @@ int woody_find_target_segment(t_woody *woody) {
             return (EXIT_SUCCESS);
         }
     }
-    return (EXIT_FAILURE);
+    return (error("No executable segment found"));
 }
 
 void make_text_segment_writable(t_woody *woody) {

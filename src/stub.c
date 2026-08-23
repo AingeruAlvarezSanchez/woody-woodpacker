@@ -96,13 +96,13 @@ static int patch_stub_parameters(t_woody *woody) {
 
 static int install_stub(t_woody *woody) {
     Elf64_Phdr *stub_header;
-    Elf64_Phdr old_note;
+    //Elf64_Phdr old_note;
 
     stub_header = find_program_header_by_type(&woody->elf, PT_NOTE);
     if (stub_header == NULL)
         return EXIT_FAILURE;
 
-    old_note = *stub_header;
+    //old_note = *stub_header;
 
     stub_header->p_type = PT_LOAD;
     stub_header->p_offset = woody->stub_file_offset;
@@ -115,7 +115,7 @@ static int install_stub(t_woody *woody) {
 
     woody->elf.ehdr->e_entry = woody->stub_vaddr;
 
-    debug_stub_conversion(&old_note, stub_header, woody->elf.ehdr->e_entry);
+    //debug_stub_conversion(&old_note, stub_header, woody->elf.ehdr->e_entry);
 
     return EXIT_SUCCESS;
 }

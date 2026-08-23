@@ -2,7 +2,7 @@
 
 static int process_file(t_woody *woody) {
     if (woody_find_target_segment(woody) != EXIT_SUCCESS)
-        return error("No executable segment found");
+        return (EXIT_FAILURE); /* el mensaje lo emitió find_target_segment */
 
     if (woody_prepare_cipher(woody) != EXIT_SUCCESS || woody_encrypt_segment(woody) != EXIT_SUCCESS)
         return EXIT_FAILURE;

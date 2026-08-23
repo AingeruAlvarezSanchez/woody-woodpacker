@@ -60,9 +60,9 @@ int load_elf_file(const char *file, t_elf *elf) {
 
     Elf64_Phdr *program_headers = (Elf64_Phdr *)((unsigned char *)elf_header + elf_header->e_phoff);
 
-    debug_elf_header(elf_header);
-    debug_program_headers(program_headers, elf_header->e_phnum);
-    debug_entry_point_segment(elf_header, program_headers);
+    // debug_elf_header(elf_header);
+    // debug_program_headers(program_headers, elf_header->e_phnum);
+    // debug_entry_point_segment(elf_header, program_headers);
 
     elf->map = (unsigned char *)elf_header;
     elf->file_size = (size_t)offset;
