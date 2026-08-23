@@ -1,4 +1,5 @@
 #include "woody_woodpacker.h"
+#include "debug.h"
 
 extern unsigned char woody_stub_start[];
 extern unsigned char woody_stub_end[];
@@ -12,15 +13,20 @@ size_t stub_template_size(void) {
 }
 
 static int copy_stub_template(t_woody *woody) {
-    woody->stub_size = stub_template_size();
-    if (woody->stub_size == 0)
+    size_t template_size = stub_template_size();
+
+    if (template_size == 0)
         return EXIT_FAILURE;
 
+    if (woody->text_size > SIZE_MAX - template_size)
+        return EXIT_FAILURE;
+
+    woody->stub_size = template_size + woody->text_size;
     woody->stub = malloc(woody->stub_size);
     if (woody->stub == NULL)
         return error(strerror(ENOMEM));
 
-    memcpy(woody->stub, stub_template(), woody->stub_size);
+    ft_memcpy(woody->stub, stub_template(), template_size);
     return EXIT_SUCCESS;
 }
 
@@ -67,8 +73,7 @@ static Elf64_Phdr *find_program_header_by_type(t_elf *elf, Elf64_Word type) {
 }
 
 static int patch_stub_parameters(t_woody *woody) {
-    size_t entry_marker_offset;
-    int64_t entry_offset;
+    size_t template_size = stub_template_size();
 
     if (patch_marker_u64(woody->stub, woody->stub_size, STUB_MARKER_TEXT_REL,
         (uint64_t)((int64_t)woody->text_vaddr - (int64_t)woody->stub_vaddr)) != EXIT_SUCCESS)
@@ -77,31 +82,27 @@ static int patch_stub_parameters(t_woody *woody) {
     if (patch_marker_u64(woody->stub, woody->stub_size, STUB_MARKER_TEXT_SIZE, (uint64_t)woody->text_size) != EXIT_SUCCESS)
         return EXIT_FAILURE;
 
-    if (patch_marker_u64(woody->stub, woody->stub_size, STUB_MARKER_XOR_KEY, woody->xor_key) != EXIT_SUCCESS)
+    /* entry is patched as a plain offset; the stub adds r12 at runtime. */
+    if (patch_marker_u64(woody->stub, woody->stub_size, STUB_MARKER_ENTRY_REL,
+        (uint64_t)((int64_t)woody->original_entry - (int64_t)woody->stub_vaddr)) != EXIT_SUCCESS)
         return EXIT_FAILURE;
 
-    if (find_marker(woody->stub, woody->stub_size, STUB_MARKER_ENTRY_REL, &entry_marker_offset) != EXIT_SUCCESS)
-        return EXIT_FAILURE;
-
-    entry_offset = (int64_t)(woody->original_entry - (int64_t)(woody->stub_vaddr + entry_marker_offset));
-
-    memcpy(woody->stub + entry_marker_offset, &entry_offset, sizeof(entry_offset));
+    /* el keystream se genera desde la foto inicial, no desde el estado mutado */
+    chacha20_generate_keystream(woody->chacha_initial_state,
+        woody->stub + template_size, woody->text_size);
 
     return EXIT_SUCCESS;
 }
 
 static int install_stub(t_woody *woody) {
     Elf64_Phdr *stub_header;
+    Elf64_Phdr old_note;
 
     stub_header = find_program_header_by_type(&woody->elf, PT_NOTE);
     if (stub_header == NULL)
         return EXIT_FAILURE;
 
-    printf("\n[stub] Replacing PT_NOTE\n");
-    printf("  old offset : 0x%lx\n",
-        (unsigned long)stub_header->p_offset);
-    printf("  old vaddr  : 0x%lx\n",
-        (unsigned long)stub_header->p_vaddr);
+    old_note = *stub_header;
 
     stub_header->p_type = PT_LOAD;
     stub_header->p_offset = woody->stub_file_offset;
@@ -114,19 +115,7 @@ static int install_stub(t_woody *woody) {
 
     woody->elf.ehdr->e_entry = woody->stub_vaddr;
 
-    printf("\n[stub] New PT_LOAD\n");
-    printf("  file offset : 0x%lx\n",
-        (unsigned long)stub_header->p_offset);
-    printf("  vaddr       : 0x%lx\n",
-        (unsigned long)stub_header->p_vaddr);
-    printf("  filesz      : 0x%lx\n",
-        (unsigned long)stub_header->p_filesz);
-    printf("  memsz       : 0x%lx\n",
-        (unsigned long)stub_header->p_memsz);
-    printf("  align       : 0x%lx\n",
-        (unsigned long)stub_header->p_align);
-    printf("  entry       : 0x%lx\n",
-        (unsigned long)woody->elf.ehdr->e_entry);
+    debug_stub_conversion(&old_note, stub_header, woody->elf.ehdr->e_entry);
 
     return EXIT_SUCCESS;
 }

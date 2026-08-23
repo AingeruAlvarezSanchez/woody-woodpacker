@@ -30,13 +30,13 @@
 
 #define PAGE_SIZE_BYTES            0x1000UL
 #define PAGE_ALIGN_MASK            (~(PAGE_SIZE_BYTES - 1))
-#define XOR_KEY_SIZE_BYTES         8
+#define CHACHA_KEY_SIZE_BYTES      32
+#define CHACHA_NONCE_SIZE_BYTES    12
 
 /* Hexadecimal literals used as placeholders and replaced before injection. */
 #define STUB_MARKER_TEXT_REL       UINT64_C(0x1111111111111111)
 #define STUB_MARKER_TEXT_SIZE      UINT64_C(0x2222222222222222)
-#define STUB_MARKER_XOR_KEY        UINT64_C(0x3333333333333333)
-#define STUB_MARKER_ENTRY_REL      UINT64_C(0x4444444444444444)
+#define STUB_MARKER_ENTRY_REL      UINT64_C(0x3333333333333333)
 
 /* ── Central Woody Packer Context Structure ────────────────────────────── */
 typedef struct s_woody {
@@ -46,14 +46,13 @@ typedef struct s_woody {
     Elf64_Off      text_offset;
     Elf64_Addr     original_entry;
 
-    uint64_t       xor_key;
-
     unsigned char *stub;
     size_t         stub_size;
     Elf64_Off      stub_file_offset;
     Elf64_Addr     stub_vaddr;
 
     uint32_t         chacha_state[16];
+    uint32_t         chacha_initial_state[16];
 } t_woody;
 
 uint8_t error(char *);
@@ -63,12 +62,12 @@ void      make_text_segment_writable(t_woody *);
 int       woody_prepare_cipher(t_woody *);
 int       prepare_chacha20_stream(uint32_t states[16]);
 void      chacha20_encrypt(uint32_t states[16], unsigned char *text, const size_t len);
+void      chacha20_generate_keystream(uint32_t states[16], unsigned char *keystream_out, const size_t len);
 int       woody_encrypt_segment(t_woody *);
 int       woody_inject_payload(t_woody *);
 int       create_woody_executable(t_woody *);
 
 unsigned char *stub_template(void);
 size_t    stub_template_size(void);
-void      print_key_info(uint64_t);
 
 #endif

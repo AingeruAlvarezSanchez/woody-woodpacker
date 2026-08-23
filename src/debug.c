@@ -8,8 +8,7 @@ static const char *elf_class_name(unsigned char elf_class){
     else return ("ELFCLASSNONE");
 }
 
-static const char *elf_data_name(unsigned char data)
-{
+static const char *elf_data_name(unsigned char data) {
     if (data == ELFDATA2LSB)
         return ("little-endian");
     else if (data == ELFDATA2MSB)
@@ -17,8 +16,7 @@ static const char *elf_data_name(unsigned char data)
     else return ("unknown");
 }
 
-static const char *elf_type_name(Elf64_Half type)
-{
+static const char *elf_type_name(Elf64_Half type) {
     if (type == ET_REL)
         return ("ET_REL");
     else if (type == ET_EXEC)
@@ -30,8 +28,7 @@ static const char *elf_type_name(Elf64_Half type)
     else return ("ET_NONE/unknown");
 }
 
-static const char *elf_machine_name(Elf64_Half machine)
-{
+static const char *elf_machine_name(Elf64_Half machine) {
     if (machine == EM_X86_64)
         return ("EM_X86_64");
     else return ("unsupported/unknown");
@@ -107,19 +104,12 @@ void debug_program_headers(const Elf64_Phdr *program_headers, Elf64_Half program
         debug_program_header(&program_headers[index], index);
 }
 
-void debug_entry_point_segment(const Elf64_Ehdr *header,
-    const Elf64_Phdr *program_headers)
-{
-    Elf64_Half index;
-
-    index = 0;
-    while (index < header->e_phnum)
-    {
+void debug_entry_point_segment(const Elf64_Ehdr *header, const Elf64_Phdr *program_headers) {
+    for (Elf64_Half index = 0; index < header->e_phnum; index++) {
         if (program_headers[index].p_type == PT_LOAD
             && header->e_entry >= program_headers[index].p_vaddr
             && header->e_entry - program_headers[index].p_vaddr
-                < program_headers[index].p_memsz)
-        {
+                < program_headers[index].p_memsz) {
             printf("\nEntry point 0x%llx is in PT_LOAD [%u]\n",
                 (unsigned long long)header->e_entry, (unsigned int)index);
             printf("  entry virtual offset = 0x%llx\n",
@@ -131,8 +121,22 @@ void debug_entry_point_segment(const Elf64_Ehdr *header,
                 program_headers[index].p_offset, program_headers[index].p_filesz);
             return ;
         }
-        index++;
     }
     printf("\nEntry point 0x%llx is not in a PT_LOAD segment\n",
         (unsigned long long)header->e_entry);
+}
+
+void debug_stub_conversion(const Elf64_Phdr *old_note, const Elf64_Phdr *new_load,
+        Elf64_Addr entry) {
+    printf("\n[stub] Replacing PT_NOTE\n");
+    printf("  old offset : 0x%llx\n", (unsigned long long)old_note->p_offset);
+    printf("  old vaddr  : 0x%llx\n", (unsigned long long)old_note->p_vaddr);
+
+    printf("\n[stub] New PT_LOAD\n");
+    printf("  file offset : 0x%llx\n", (unsigned long long)new_load->p_offset);
+    printf("  vaddr       : 0x%llx\n", (unsigned long long)new_load->p_vaddr);
+    printf("  filesz      : 0x%llx\n", (unsigned long long)new_load->p_filesz);
+    printf("  memsz       : 0x%llx\n", (unsigned long long)new_load->p_memsz);
+    printf("  align       : 0x%llx\n", (unsigned long long)new_load->p_align);
+    printf("  entry       : 0x%llx\n", (unsigned long long)entry);
 }

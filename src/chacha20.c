@@ -4,24 +4,22 @@ int woody_prepare_cipher(t_woody *woody) {
     if (woody == NULL)
         return EXIT_FAILURE;
 
-    return prepare_chacha20_stream(woody->chacha_state);
+    if (prepare_chacha20_stream(woody->chacha_state) != EXIT_SUCCESS)
+        return EXIT_FAILURE;
+
+    ft_memcpy(woody->chacha_initial_state, woody->chacha_state, sizeof(woody->chacha_state));
+
+    return EXIT_SUCCESS;
 }
 
 int woody_encrypt_segment(t_woody *woody) {
-    Elf64_Shdr *section_headers;
 
     if (woody == NULL || woody->elf.map == NULL || woody->elf.ehdr == NULL)
         return EXIT_FAILURE;
 
-    section_headers = (Elf64_Shdr *)(woody->elf.map + woody->elf.ehdr->e_shoff);
+    unsigned char *text = woody->elf.map + woody->text_offset;
 
-    for (Elf64_Half i = 0; i < woody->elf.ehdr->e_shnum; i++) {
-        if (section_headers[i].sh_flags & SHF_EXECINSTR) {
-            unsigned char *text = woody->elf.map + section_headers[i].sh_offset;
-
-            chacha20_encrypt(woody->chacha_state, text, section_headers[i].sh_size);
-        }
-    }
+    chacha20_encrypt(woody->chacha_state, text, woody->text_size);
 
     printf("key_value: ");
 
@@ -99,18 +97,36 @@ static void chacha20_block(uint32_t states[16], unsigned char keystream[64]) {
     }
 }
 
-void chacha20_encrypt(uint32_t states[16], unsigned char *text, const size_t len) {
-    unsigned char encrypted_text[64];
+/* Genera el keystream bloque a bloque y lo aplica sobre dst.
+ * Este es el unico bucle de chaCha20; encrypt y generate_keystream
+ * comparten el mismo skeleton y solo difieren en la operacion final
+ * (XOR para cifrar, memcpy para extraer el keystream). Extraerlo evita
+ * duplicar el recorrido de bloques y el incremento del counter. */
+static void chacha20_process(uint32_t states[16], unsigned char *dst,
+        const size_t len, const int apply_xor) {
+    unsigned char block[64];
 
     for (size_t i = 0; i < len; i += 64) {
-        chacha20_block(states, encrypted_text);
+        chacha20_block(states, block);
 
         states[12]++;
 
         const size_t n = ((len - i) < 64)
             ? (len - i) : 64;
 
-        for (size_t k = 0; k < n; k++)
-            text[i + k] ^= encrypted_text[k];
+        if (apply_xor) {
+            for (size_t k = 0; k < n; k++)
+                dst[i + k] ^= block[k];
+        } else {
+            ft_memcpy(dst + i, block, n);
+        }
     }
+}
+
+void chacha20_encrypt(uint32_t states[16], unsigned char *text, const size_t len) {
+    chacha20_process(states, text, len, 1);
+}
+
+void chacha20_generate_keystream(uint32_t states[16], unsigned char *keystream_out, const size_t len) {
+    chacha20_process(states, keystream_out, len, 0);
 }

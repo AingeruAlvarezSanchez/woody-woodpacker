@@ -2,6 +2,7 @@ NAME = woody_woodpacker
 
 CC = gcc
 CFLAGS = -Wall -Werror -Wextra -MMD -MP
+DEBUG_CFLAGS = -g
 SANITIZE = -g3 -fsanitize=address -fsanitize=leak
 
 SRC = src/woody_woodpacker.c src/elf.c src/program_headers.c src/debug.c src/error.c src/chacha20.c src/output.c src/stub.c
@@ -22,7 +23,7 @@ obj/%.o: src/%.c
 
 obj/stub_asm.o: src/stub.S
 	@mkdir -p obj
-	$(CC) -c $< -o $@
+	$(CC) $(CFLAGS) -g -c $< -o $@
 
 -include $(DEP)
 
@@ -52,3 +53,7 @@ libft_submodule:
 .PHONY: sanitize
 sanitize: CFLAGS += $(SANITIZE)
 sanitize: clean all
+
+.PHONY: debug
+debug: CFLAGS += $(DEBUG_CFLAGS)
+debug: clean all
